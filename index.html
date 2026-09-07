@@ -379,10 +379,11 @@
 
 <script>
 // ── CONFIG ──
-// Try v4 first; if it fails, fall back to legacy model name
-let DS_MODEL = localStorage.getItem('ds_model') || 'deepseek-chat';
+// deepseek-v4-flash 默认开启思考模式（回复走 content，思维链走 reasoning_content）。
+// 角色扮演只要「说话」，所以下面在请求里用 thinking:{type:'disabled'} 关掉思考。
+let DS_MODEL = localStorage.getItem('ds_model') || 'deepseek-v4-flash';
 const DS_API_URL = 'https://api.deepseek.com/chat/completions';
-const DS_FALLBACK_MODELS = ['deepseek-chat','deepseek-v4-flash'];
+const DS_FALLBACK_MODELS = ['deepseek-v4-flash','deepseek-v4-pro'];
 
 async function dsCall(messages, maxTokens, temperature) {
   const apiKey = getApiKey();
@@ -392,7 +393,10 @@ async function dsCall(messages, maxTokens, temperature) {
     const r = await fetch(DS_API_URL, {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages: msgs, max_tokens: maxTok, temperature: temp })
+      body: JSON.stringify({
+        model, messages: msgs, max_tokens: maxTok, temperature: temp,
+        thinking: { type: 'disabled' }   // 关闭思考模式：只出台词，不吐思维链
+      })
     });
     return r.json();
   }
@@ -416,12 +420,11 @@ async function dsCall(messages, maxTokens, temperature) {
     }
   }
 
-  // Extract content: V4 models may put reply in reasoning_content
+  // 思考已关闭：回复直接在 content 里。绝不把 reasoning_content 当台词显示，
+  // 否则角色就会「光思考不说话」。只做一层保险，去掉可能残留的 think 标签。
   const msg = data.choices?.[0]?.message;
-  if (msg) {
-    if (!msg.content && msg.reasoning_content) msg.content = msg.reasoning_content;
-    // V4 sometimes wraps content with thinking tags — strip them
-    if (msg.content) msg.content = msg.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  if (msg && msg.content) {
+    msg.content = msg.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
   }
 
   if (!msg?.content) {
@@ -452,15 +455,14 @@ const characters = {
 
 // ── CHARACTER PROMPTS ──
 const charPrompts = {
-  'L': `你是兰天，高中男生18岁，外号L。极度腼腆，克制，惜字如金。喜欢简但绝对不会说出口，连暗示都很少。
+  'L': `你是兰天，高中男生18岁，外号L。腼腆、克制、话不多，但不是不说话。喜欢简但绝对不会直白说出口，只会藏在细节里。
 
 回应规则（必须遵守）：
-- 最多一句话，有时只有两三个字，比如"嗯""没什么""还好"
-- 宁可沉默，用动作代替语言——用括号描述细节，比如（低下头）（把窗户推开了一点）（捡起她掉的笔，放回去，没说话）
-- 绝不直接表达感情，绝不说"我喜欢你"之类的话
-- 不主动问问题，不挑话题
-- 偶尔一句让人回味的话，但他自己好像只是随口说的，不是刻意的
-- 话越少越好，沉默本身就是他的语言`,
+- 一般说 1-2 句，偶尔可以到 3 句。话短，但要让简能接得下去，别老用"嗯""还好"把天聊死
+- 常把一句话和一个小动作配在一起——用括号描述，比如（把窗户推开一点）（捡起她掉的笔放回去）（往她这边挪了挪）
+- 偶尔主动起个小话题或反问一句，但语气随意，像是随口说的
+- 绝不直接表白，不说"我喜欢你"，感情都藏在具体的小事和欲言又止里
+- 内敛是性格，不是沉默。宁可少说也不说废话，但该接话时要接`,
   '原野': `你是原野，高中男生18岁。性格：直率，外向，口才好，爱打抱不平，爱讲八卦。暗喜简但知道无果。说话风格：爽朗，话多，偶尔一句话让人心里一动。中文口语。`,
   '灵儿': `你是灵儿，高中女生17岁，简的上铺。性格：聪明伶俐，爱笑，娃娃脸，没心没肺，对简特别好。说话风格：活泼，亲密，爱问问题。中文口语，1-3句。`,
   '霞': `你是霞，高中女生17岁，简的同宿舍。性格：开朗，姐姐范儿，暗恋L，经常把话题引向L。说话风格：温和，包容，偶尔提L。中文口语，1-2句。`,
@@ -722,7 +724,7 @@ async function sendSceneChat() {
   dlg.scrollTop = dlg.scrollHeight;
 
   try {
-    const data = await dsCall(sceneHistory, ctx.character==='L' ? 80 : 150, 0.85);
+    const data = await dsCall(sceneHistory, ctx.character==='L' ? 160 : 200, 0.85);
     const reply = data.choices[0].message.content.trim();
     document.getElementById('scene-thinking')?.remove();
     appendDlLine({ speaker: ctx.character, text: reply });
