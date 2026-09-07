@@ -388,10 +388,16 @@ async function dsCall(messages, maxTokens, temperature) {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error('未设置 API Key');
 
+  const payload = { model: DS_MODEL, messages, max_tokens: maxTokens, temperature };
+  // Disable thinking/reasoning mode for V4 models — we want direct content
+  if (DS_MODEL.includes('v4')) {
+    payload.thinking = { type: 'disabled' };
+  }
+
   const res = await fetch(DS_API_URL, {
     method:'POST',
     headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${apiKey}` },
-    body: JSON.stringify({ model: DS_MODEL, messages, max_tokens: maxTokens, temperature })
+    body: JSON.stringify(payload)
   });
 
   const data = await res.json();
@@ -400,16 +406,20 @@ async function dsCall(messages, maxTokens, temperature) {
   if (data.error && data.error.message && data.error.message.includes('model')) {
     for (const fb of DS_FALLBACK_MODELS) {
       if (fb === DS_MODEL) continue;
+      const fbPayload = { model: fb, messages, max_tokens: maxTokens, temperature };
+      if (fb.includes('v4')) fbPayload.thinking = { type: 'disabled' };
       const res2 = await fetch(DS_API_URL, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${apiKey}` },
-        body: JSON.stringify({ model: fb, messages, max_tokens: maxTokens, temperature })
+        method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${apiKey}` },
+        body: JSON.stringify(fbPayload)
       });
       const data2 = await res2.json();
-      if (data2.choices?.[0]?.message?.content) {
+      const content2 = data2.choices?.[0]?.message?.content || data2.choices?.[0]?.message?.reasoning_content;
+      if (content2) {
         DS_MODEL = fb;
         localStorage.setItem('ds_model', fb);
         console.log('切换到模型:', fb);
+        // Normalize: put content in place
+        if (!data2.choices[0].message.content) data2.choices[0].message.content = content2;
         return data2;
       }
     }
@@ -418,7 +428,14 @@ async function dsCall(messages, maxTokens, temperature) {
   if (data.error) {
     throw new Error(data.error.message || JSON.stringify(data.error));
   }
-  if (!data.choices?.[0]?.message?.content) {
+
+  // Handle case where content is empty but reasoning_content has the reply
+  const msg = data.choices?.[0]?.message;
+  if (msg && !msg.content && msg.reasoning_content) {
+    msg.content = msg.reasoning_content;
+  }
+
+  if (!msg?.content) {
     throw new Error('API 返回为空: ' + JSON.stringify(data).slice(0,200));
   }
   return data;
