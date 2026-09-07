@@ -259,7 +259,7 @@
   <div id="sidebar">
     <div class="sidebar-title">
       <div class="world-name">轻舞飞扬</div>
-      <div class="day-counter">高一上 · 第3周</div>
+      <div class="day-counter">1985年秋 · 高一上 · 第3周</div>
     </div>
     <div class="sidebar-nav">
       <div class="nav-section">频道</div>
@@ -278,7 +278,7 @@
       <div class="nav-item" onclick="openScene('movie-l')"><div class="nav-dot"></div>看电影·相邻 ✦</div>
     </div>
     <div class="sidebar-footer">
-      高一上 · 第3周<br>现实3天 = 游戏1天
+      1985年秋 · 高一上 · 第3周<br>现实3天 = 游戏1天
       <div class="theme-bar">
         <div class="theme-btn tb-dark active" onclick="setTheme('dark')" title="暗夜"></div>
         <div class="theme-btn tb-light" onclick="setTheme('light')" title="日光"></div>
@@ -295,7 +295,7 @@
         <div class="scene-label" id="panel-label">消息流</div>
         <div class="scene-title" id="panel-title">你不在的时候，世界还在走</div>
       </div>
-      <div class="header-right">高一上<br>第3周·周四</div>
+      <div class="header-right">1985年秋 · 高一上<br>第3周·周四</div>
     </div>
 
     <!-- FEED PANEL -->
@@ -479,9 +479,17 @@ const charPrompts = {
   '庆': `你是庆，高中男生19岁，高大健壮，大嗓门，传统，孝子，暗恋霞。说话风格：粗线条，直接，偶尔细腻。中文口语，1-2句。`,
 };
 
+// ── 时代设定（1985 年前后的中国，所有对话都必须遵守）──
+const ERA = `【时代背景 · 必须严格遵守】
+故事发生在 1985 年前后的中国内地一座普通县城中学，物质匮乏，条件艰苦。
+- 绝对不能出现任何 1985 年之后才有的东西：手机、电脑、网络、微信/QQ、外卖、辣条、可乐、空调、电视剧偶像、网吧、共享单车等，一律不许提。也不许用现代网络流行语和缩写。
+- 那个年代的真实细节要自然融入：粮票、饭票、搪瓷缸、铝饭盒、馒头咸菜、玉米糊、煤油灯/蜡烛（有时停电）、蜂窝煤、大通铺或上下铺、水房排队打热水、跑早操和广播体操、劳动课、写信和贴邮票、黑白电视要去别人家看、露天电影或大礼堂放电影、录音机和磁带很稀罕、的确良衬衫、打补丁的衣服、二八自行车、钢笔和墨水、油印的卷子。
+- 学生的心气是那个年代的：把考大学、跳出农门看得极重，老师权威，早自习晚自习，条件苦但有股向上的劲儿。
+- 说话用 80 年代校园口语，朴素、真诚，不要现代腔。`;
+
 // ── GROUP CHAT AI ──
 const groupCast = ['灵儿','原野','霞','鹏程','慧','杰','柳','礼','君','大智','兰','远','庆','全老师','L'];
-const groupContext = `这是高一(3)班的班级群聊，高一上学期第三周。角色们在聊日常学校生活：作业、老师、考试、八卦、座位、食堂、体育课等。偶尔也聊私事，暗示各自的感情线但不直说。全老师偶尔出现说几句。简（用户）也在群里。保持角色各自的性格，对话自然真实，像真实的班级群。`;
+const groupContext = ERA + `\n\n这是高一(3)班同学之间传话聊天的场景（用聊天界面呈现，但都是 1985 年的人和事）。高一上学期第三周。角色们在聊日常学校生活：作业、老师、考试、八卦、座位、食堂打饭、体育课、劳动课、早晚自习等。偶尔也聊私事，暗示各自的感情线但不直说。全老师偶尔出现说几句。简（用户）也在其中。保持角色各自的性格，对话自然真实，符合那个年代。`;
 
 let groupHistory = [
   { role:'system', content: groupContext + '\n\n角色性格简介：\n' +
@@ -672,7 +680,7 @@ function openScene(sceneId) {
       if (i === ctx.opening.length-1) {
         sceneHistory.push({
           role:'system',
-          content: charPrompts[ctx.character] + `\n\n你现在在和简（用户）对话。场景：${ctx.title}。简开口后你才回应，等她说话。`
+          content: ERA + '\n\n' + charPrompts[ctx.character] + `\n\n你现在在和简（用户）对话。场景：${ctx.title}。简开口后你才回应，等她说话。`
         });
       }
     }, i*260);
